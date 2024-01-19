@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>FarmBuddy Sensor Data</title>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+  </head>
+  <body>
+    <form id="date-form">
+      <div>
+        <label for="start-date">Start Date:</label>
+        <input type="date" id="start-date" name="start-date">
+      </div>
+      <div>
+        <label for="end-date">End Date:</label>
+        <input type="date" id="end-date" name="end-date">
+      </div>
+      <button id="submit">Submit</button>
+    </form>
+    <div id="chart-container"></div>
+    <script>
+      function getData(start, end) {
+  const url = `/data/chart-data?start=${start.toISOString()}&end=${end.toISOString()}`;
+  fetch(url)
+    .then((res) => res.json())
+    .then((data) => {
+      console.log(data);
+      const chartData = data.map((obj) => ({
+        x: new Date(obj.msg.timestamp).getTime(),
+        y: obj.msg.temp,
+      }));
+      const chartOptions = {
+        chart: {
+          type: 'line',
+        },
+        title: {
+          text: 'FarmBuddy Sensor Data',
+        },
+        xAxis: {
+          type: 'datetime',
+          title: {
+            text: 'Date',
+          },
+        },
+        yAxis: {
+          title: {
+            text: 'Temperature (C)',
+          },
+        },
+        series: [
+          {
+            name: 'Temperature',
+            data: chartData,
+          },
+        ],
+      };
+      const chart = Highcharts.chart('chart-container', chartOptions);
+    });
+}
+
+      function handleSubmit(event) {
+        event.preventDefault();
+        const start = new Date(document.getElementById('start-date').value);
+        const end = new Date(document.getElementById('end-date').value);
+        getData(start, end);
+		 // Save start and end dates in localStorage
+        localStorage.setItem('start-date', start.toISOString());
+        localStorage.setItem('end-date', end.toISOString());
+      }
+
+      const form = document.getElementById('date-form');
+      form.addEventListener('submit', handleSubmit);
+	  
+	  //Local storage here
+	  
+	  // Load start and end dates from localStorage if they exist
+      const savedStartDate = localStorage.getItem('start-date');
+      if (savedStartDate) {
+        const startDateInput = document.getElementById('start-date');
+        startDateInput.value = savedStartDate.slice(0, 10);
+      }
+      const savedEndDate = localStorage.getItem('end-date');
+      if (savedEndDate) {
+        const endDateInput = document.getElementById('end-date');
+        endDateInput.value = savedEndDate.slice(0, 10);
+      }
+
+      // Call getData on page load if start and end dates are saved
+      if (savedStartDate && savedEndDate) {
+        const start = new Date(savedStartDate);
+        const end = new Date(savedEndDate);
+        getData(start, end);
+      }
+    </script>
+  </body>
+</html>

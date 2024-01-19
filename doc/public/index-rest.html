@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>FarmBuddy Sensor Data</title>
+    <!--<script src="https://code.highcharts.com/highcharts.js"></script>-->
+    <link rel="stylesheet" href="https://code.highcharts.com/css/highcharts.css">
+<script src="https://code.highcharts.com/stock/highstock.js"></script>
+  <link rel="stylesheet"href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <style>
+     #mapid {
+        height: 300px;
+      }
+      #chart-container {
+        height: 600px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+	   #table-wrapper {
+        height: 300px;
+        max-width: 800px;
+        margin: 0 auto;
+        overflow: auto;
+      }
+	  table {
+        border-collapse: collapse;
+        width: 100%;
+        max-width: 800px;
+      }
+      th, td {
+        text-align: left;
+        padding: 8px;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      tr:hover {
+        background-color: #f5f5f5;
+      }
+    </style>
+  </head>
+  <body>
+    <form id="date-form">
+      <div>
+        <label for="start-date">Start Date:</label>
+        <input type="date" id="start-date" name="start-date">
+      </div>
+      <div>
+        <label for="end-date">End Date:</label>
+        <input type="date" id="end-date" name="end-date">
+      </div>
+      <button id="submit">Submit</button>
+    </form>
+    <div id="growth-container">HI GROWTH</div>
+    <div id="chart-container"></div>
+   <div id="mapid"></div>
+      <div id="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Temperature (C)</th>
+            <th>Humidity (%)</th>
+            <th>Heat Index</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+        </tbody>
+      </table>
+    </div>
+    <script>
+    
+
+function getData(start, end) {
+  const url = `/data/chart-data?start=${start.toISOString()}&end=${end.toISOString()}`;
+  fetch(url)
+    .then((res) => res.json())
+    .then((data) => {
+      const chartData = data.map((obj) => ({
+        x: new Date(obj.msg.timestamp).getTime(),
+        y: [obj.msg.temp, obj.msg.humid, obj.msg.heatIndex],
+      }));
+
+      const tableBody = document.getElementById('table-body');
+      tableBody.innerHTML = '';
+      data.forEach((obj) => {
+        const row = document.createElement('tr');
+        const dateCell = document.createElement('td');
+        dateCell.textContent = obj.msg.timestamp;
+        row.appendChild(dateCell);
+        const tempCell = document.createElement('td');
+        tempCell.textContent = obj.msg.temp;
+        row.appendChild(tempCell);
+        const humidCell = document.createElement('td');
+        humidCell.textContent = obj.msg.humid;
+        row.appendChild(humidCell);
+        const heatIndexCell = document.createElement('td');
+        heatIndexCell.textContent = obj.msg.heatIndex;
+        row.appendChild(heatIndexCell);
+        tableBody.appendChild(row);
+      });
+
+      const chartOptions = {
+        chart: {
+          type: "line",
+        },
+        title: {
+          text: "FarmBuddy Sensor Data",
+        },
+        xAxis: {
+          type: "datetime",
+          title: {
+            text: "Date",
+          },
+        },
+        yAxis: [
+          {
+            title: {
+              text: "Temperature (C)",
+            },
+          },
+          {
+            title: {
+              text: "Humidity (%)",
+            },
+            opposite: true,
+          },
+        ],
+        series: [
+          {
+            name: "Temperature",
+            data: chartData.map((data) => [data.x, data.y[0]]),
+          },
+          {
+            name: "Humidity",
+            data: chartData.map((data) => [data.x, data.y[1]]),
+            yAxis: 1,
+          },
+          {
+            name: "Heat Index",
+            data: chartData.map((data) => [data.x, data.y[2]]),
+            yAxis: 0,
+          },
+        ],
+        scrollbar: {
+          enabled: true,
+        },
+        rangeSelector: {
+          enabled: true,
+          inputEnabled: true,
+          buttons: [{
+            type: 'day',
+            count: 1,
+            text: '1d'
+          }, {
+            type: 'week',
+            count: 1,
+            text: '1w'
+          }, {
+            type: 'month',
+            count: 1,
+            text: '1m'
+          }, {
+            type: 'year',
+            count: 1,
+            text: '1y'
+          }, {
+            type: 'all',
+            text: 'All'
+          }],
+           selected: 4 // All
+        }
+      };
+
+      const chart = Highcharts.chart("chart-container", chartOptions);
+    });
+}
+
+      function handleSubmit(event) {
+        event.preventDefault();
+        const start = new Date(document.getElementById('start-date').value);
+        const end = new Date(document.getElementById('end-date').value);
+        getData(start, end);
+        // Save start and end dates in localStorage
+        localStorage.setItem('start-date', start.toISOString());
+        localStorage.setItem('end-date', end.toISOString());
+      }
+      const form = document.getElementById('date-form');
+      form.addEventListener('submit', handleSubmit);
+      //Local storage here
+      // Load start and end dates from localStorage if they exist
+      const savedStartDate = localStorage.getItem('start-date');
+      if (savedStartDate) {
+        const startDateInput = document.getElementById('start-date');
+        startDateInput.value = savedStartDate.slice(0, 10);
+      }
+      const savedEndDate = localStorage.getItem('end-date');
+      if (savedEndDate) {
+        const endDateInput = document.getElementById('end-date');
+        endDateInput.value = savedEndDate.slice(0, 10);
+      }
+      // Call getData on page load if start and end dates are saved
+      if (savedStartDate && savedEndDate) {
+        const start = new Date(savedStartDate);
+        const end = new Date(savedEndDate);
+        getData(start, end);
+      }
+    </script>
+	
+	
+	<script>
+      // Define your API endpoint
+      const apiUrl = "http://localhost:3000/data/";
+
+      // Define your device ID
+      const deviceId = "FarmBuddy_Sensor_Node02";
+
+      // Create the Leaflet map object
+      const mymap = L.map("mapid").setView([0, 0], 2);
+
+      // Load the map tiles from OpenStreetMap
+      L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          attribution:
+            'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
+          maxZoom: 18,
+        }
+      ).addTo(mymap);
+
+      // Define a custom icon for the marker
+      const icon = L.icon({
+        iconUrl:
+          "https://cdn0.iconfinder.com/data/icons/small-n-flat/24/678111-map-marker-512.png",
+        iconSize: [38, 38],
+        iconAnchor: [22, 38],
+        popupAnchor: [-3, -36],
+      });
+
+      // Make an API request to fetch data based on device ID
+      fetch(apiUrl + deviceId)
+        .then((response) => response.json())
+        .then((data) => {
+          // Loop through the data and add markers to the map
+          data.forEach((d) => {
+            if (d.msg && d.msg.location) {
+              const marker = L.marker(
+                [d.msg.location.latitude, d.msg.location.longitude],
+                { icon: icon }
+              ).addTo(mymap);
+
+              // Add a popup to the marker with device ID and other data
+              marker.bindPopup(
+             `<b>Device ID:</b> ${d.deviceId}<br>
+                        <b>Latitude:</b> ${d.msg.location.latitude}<br>
+                        <b>Longitude:</b> ${d.msg.location.longitude}<br>
+                <b>Temperature:</b> ${d.msg.temp}<br>
+                <b>Humidity:</b> ${d.msg.humid}<br>
+                <b>HeatIndex:</b> ${d.msg.heatIndex}<br>`
+                      );
+                    }
+                  });
+                })
+                .catch((error) => console.log(error));
+    </script>
+  <!--  <script>
+   // const apiUrl2 = '/api/v1/plants/search?token=cM9awncDoYNTQpWzUGEuObEE5K_I3C5vFLrrF0VdhzY&q=cabbage';
+   // const apiUrl2 ='/api/v1/plants/search?token=cM9awncDoYNTQpWzUGEuObEE5K_I3C5vFLrrF0VdhzY&q=corn&fields=common_name,days_to_harvest,description,sowing,ph_maximum,ph_minimum,light,atmospheric_humidity';
+    const apiUrl2 ='/api/v1/plants/search?token=cM9awncDoYNTQpWzUGEuObEE5K_I3C5vFLrrF0VdhzY&q=corn&fields=common_name,days_to_harvest,description,sowing,ph_maximum,ph_minimum,light,atmospheric_humidity,temperature_minimum,temperature_maximum';
+
+    fetch(apiUrl2)
+  .then(response => response.json())
+  .then(data => {
+    const plant = data.data[0];
+    const growthParameters = {
+      commonName:plant.common_name,
+      daysToHarvest: plant.days_to_harvest,
+      description: plant.description,
+      sowing: plant.sowing,
+      ph_maximum: plant.ph_maximum,
+      ph_minimum: plant.ph_minimum,
+      light: plant.light,
+      atmospheric_humidity: plant.atmospheric_humidity,
+    };
+    console.log(growthParameters);
+    //console.log(plant);
+
+  });
+ </script>-->
+  </body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Map with Markers</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Load Leaflet from CDN -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+      #mapid {
+        height: 500px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="mapid"></div>
+
+    <script>
+      // Define your API endpoint
+      const apiUrl = "http://localhost:3000/data/";
+
+      // Define your device ID
+      const deviceId = "FarmBuddy_Sensor_Node02";
+
+      // Create the Leaflet map object
+      const mymap = L.map("mapid").setView([0, 0], 2);
+
+      // Load the map tiles from OpenStreetMap
+      L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          attribution:
+            'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
+          maxZoom: 18,
+        }
+      ).addTo(mymap);
+
+      // Define a custom icon for the marker
+      const icon = L.icon({
+        iconUrl:
+          "https://cdn0.iconfinder.com/data/icons/small-n-flat/24/678111-map-marker-512.png",
+        iconSize: [38, 38],
+        iconAnchor: [22, 38],
+        popupAnchor: [-3, -36],
+      });
+
+      // Make an API request to fetch data based on device ID
+      fetch(apiUrl + deviceId)
+        .then((response) => response.json())
+        .then((data) => {
+          // Loop through the data and add markers to the map
+          data.forEach((d) => {
+            if (d.msg && d.msg.location) {
+              const marker = L.marker(
+                [d.msg.location.latitude, d.msg.location.longitude],
+                { icon: icon }
+              ).addTo(mymap);
+
+              // Add a popup to the marker with device ID and other data
+              marker.bindPopup(
+     `<b>Device ID:</b> ${d.deviceId}<br>
+                <b>Latitude:</b> ${d.msg.location.latitude}<br>
+                <b>Longitude:</b> ${d.msg.location.longitude}<br>
+	    <b>Temperature:</b> ${d.msg.temp}<br>
+	    <b>Humidity:</b> ${d.msg.humid}<br>
+	    <b>HeatIndex:</b> ${d.msg.heatIndex}<br>`
+              );
+            }
+          });
+        })
+        .catch((error) => console.log(error));
+    </script>
+  </body>
+</html>
